@@ -73,7 +73,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```powershell
 # открыть PowerShell и перейти на диск C
 C:
-cd \path\to\rteherher
+cd C:\Users\SystemX\Downloads\rteherher   # ПРИМЕР, подставьте ваш реальный путь
 
 # backend
 cd server
@@ -86,9 +86,81 @@ npm run dev
 
 # frontend в новом окне PowerShell
 C:
-cd \path\to\rteherher\client
+cd C:\Users\SystemX\Downloads\rteherher\client   # ПРИМЕР
 npm install
 npm run dev
+```
+
+## Частые ошибки PowerShell (как у вас) и быстрый фикс
+
+### 1) `cd \path\to\...` не найден
+`\path\to\...` — это шаблон, а не реальная папка.
+
+Проверьте, где реально лежит проект:
+```powershell
+Get-ChildItem C:\Users\SystemX
+Get-ChildItem C:\Users\SystemX\Downloads
+```
+
+И переходите в настоящий путь, например:
+```powershell
+cd C:\Users\SystemX\Downloads\rteherher\server
+```
+
+Проверка, что вы в нужной папке:
+```powershell
+Get-ChildItem
+```
+В списке должны быть `package.json` и `.env.example`.
+
+### 2) `npm.ps1 / npx.ps1` blocked (ExecutionPolicy)
+Есть 2 безопасных варианта:
+
+**Вариант A (рекомендуется):**
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+Закройте и заново откройте PowerShell.
+
+**Вариант B (без изменения политики):**
+используйте `.cmd`-обертки:
+```powershell
+npm.cmd install
+npx.cmd prisma generate
+npx.cmd prisma migrate dev --name init
+npm.cmd run seed
+npm.cmd run dev
+```
+
+### 3) Команды `copy .env.example .env` не работают
+Это значит, что вы не в папке `server`.
+
+Сначала:
+```powershell
+cd C:\...\rteherher\server
+Get-ChildItem
+```
+Потом:
+```powershell
+Copy-Item .env.example .env
+```
+
+### Минимальная рабочая последовательность для Windows (C:)
+```powershell
+C:
+cd C:\Users\SystemX\Downloads\rteherher\server
+Copy-Item .env.example .env
+npm.cmd install
+npx.cmd prisma generate
+npx.cmd prisma migrate dev --name init
+npm.cmd run seed
+npm.cmd run dev
+
+# second terminal
+C:
+cd C:\Users\SystemX\Downloads\rteherher\client
+npm.cmd install
+npm.cmd run dev
 ```
 
 ### DB modes
