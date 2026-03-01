@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = env("DATABASE_PROVIDER")
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  USER
+  PREMIUM
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ChatType {
+  DM
+  GROUP
+  CHANNEL
+}
+
+enum ChannelPostPolicy {
+  ADMINS_ONLY
+  EVERYONE
+}
+
+enum ChatMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum AttachmentType {
+  IMAGE
+  VIDEO
+  FILE
+  AUDIO
+  VOICE
+}
+
+enum EmojiPackStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum StoryMediaType {
+  IMAGE
+  VIDEO
+}
+
+model User {
+  id                  String                 @id @default(cuid())
+  login               String                 @unique
+  passwordHash        String
+  username            String                 @unique
+  displayName         String
+  bio                 String?                @db.Text
+  avatarUrl           String?
+  tier                Tier                   @default(USER)
+  role                Role                   @default(USER)
+  badgeUnicode        String?
+  badgeEmojiId        String?
+  lastSeenVisibility  String                 @default("EVERYONE")
+  callVisibility      String                 @default("CONTACTS")
+  storiesVisibility   String                 @default("CONTACTS")
+  isBanned            Boolean                @default(false)
+  mutedUntil          DateTime?
+  lastSeenAt          DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  badgeEmoji          CustomEmoji?           @relation("BadgeEmoji", fields: [badgeEmojiId], references: [id])
+  chatMembers         ChatMember[]
+  sentMessages        Message[]              @relation("SentMessages")
+  reactions           Reaction[]
+  messageDeletedFor   MessageDeleteForUser[]
+  stories             Story[]
+  storyViews          StoryView[]
+  storyReactions      StoryReaction[]
+  storyReplies        StoryReply[]
+  emojiPacks          EmojiPack[]
+  customEmojis        CustomEmoji[]          @relation("EmojiCreator")
+  issuedInviteLinks   InviteLink[]
+  adminAuditActions   AdminAudit[]           @relation("AuditActor")
+
+  @@index([displayName])
+  @@index([username])
+}
+
+model AdminUser {
+  id           String      @id @default(cuid())
+  login        String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  audits       AdminAudit[]
+}
+
+model AdminAudit {
+  id          String     @id @default(cuid())
+  adminId     String?
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String
+  payload     Json?
+  createdAt   DateTime   @default(now())
+
+  admin       AdminUser? @relation(fields: [adminId], references: [id])
+  actorUser   User?      @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([targetType, targetId])
+}
+
+model Chat {
+  id                String             @id @default(cuid())
+  type              ChatType
+  title             String?
+  description       String?
+  avatarUrl         String?
+  channelPostPolicy ChannelPostPolicy  @default(EVERYONE)
+  createdById       String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  members           ChatMember[]
+  messages          Message[]
+  inviteLinks       InviteLink[]
+}
+
+model ChatMember {
+  id          String          @id @default(cuid())
+  chatId      String
+  userId      String
+  role        ChatMemberRole  @default(MEMBER)
+  joinedAt    DateTime        @default(now())
+  lastReadAt  DateTime?
+
+  chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id             String               @id @default(cuid())
+  chatId          String
+  senderId        String
+  text            String?              @db.Text
+  replyToId       String?
+  forwardFromId   String?
+  isPinned        Boolean              @default(false)
+  editedAt        DateTime?
+  deletedForAllAt DateTime?
+  createdAt       DateTime             @default(now())
+
+  chat            Chat                 @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender          User                 @relation("SentMessages", fields: [senderId], references: [id])
+  replyTo         Message?             @relation("MessageReply", fields: [replyToId], references: [id])
+  replies         Message[]            @relation("MessageReply")
+  forwardFrom     Message?             @relation("MessageForward", fields: [forwardFromId], references: [id])
+  forwards        Message[]            @relation("MessageForward")
+  attachments     Attachment[]
+  reactions       Reaction[]
+  deletedForUsers MessageDeleteForUser[]
+}
+
+model MessageDeleteForUser {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+}
+
+model Reaction {
+  id            String      @id @default(cuid())
+  messageId     String
+  userId        String
+  emoji         String
+  customEmojiId String?
+  createdAt     DateTime    @default(now())
+
+  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customEmoji   CustomEmoji? @relation(fields: [customEmojiId], references: [id])
+
+  @@unique([messageId, userId, emoji])
+}
+
+model Attachment {
+  id           String         @id @default(cuid())
+  messageId    String
+  type         AttachmentType
+  url          String
+  fileName     String
+  mimeType     String
+  sizeBytes    BigInt
+  createdAt    DateTime       @default(now())
+
+  message      Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model EmojiPack {
+  id            String          @id @default(cuid())
+  ownerId       String
+  name          String
+  status        EmojiPackStatus @default(DRAFT)
+  rejectionReason String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  emojis        CustomEmoji[]
+
+  @@unique([ownerId, name])
+}
+
+model CustomEmoji {
+  id            String      @id @default(cuid())
+  packId        String
+  createdById   String
+  shortcode     String
+  imageUrl      String
+  approved      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  pack          EmojiPack   @relation(fields: [packId], references: [id], onDelete: Cascade)
+  createdBy     User        @relation("EmojiCreator", fields: [createdById], references: [id])
+  usedInReactions Reaction[]
+  badgeUsers    User[]      @relation("BadgeEmoji")
+
+  @@unique([packId, shortcode])
+  @@index([shortcode])
+}
+
+model Story {
+  id          String          @id @default(cuid())
+  authorId    String
+  mediaUrl    String
+  mediaType   StoryMediaType
+  caption     String?
+  expiresAt   DateTime
+  createdAt   DateTime        @default(now())
+
+  author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  views       StoryView[]
+  reactions   StoryReaction[]
+  replies     StoryReply[]
+}
+
+model StoryView {
+  id          String   @id @default(cuid())
+  storyId     String
+  viewerId    String
+  viewedAt    DateTime @default(now())
+
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer      User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+}
+
+model StoryReaction {
+  id          String   @id @default(cuid())
+  storyId     String
+  userId      String
+  emoji       String
+  createdAt   DateTime @default(now())
+
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StoryReply {
+  id          String   @id @default(cuid())
+  storyId     String
+  userId      String
+  text        String
+  createdAt   DateTime @default(now())
+
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InviteLink {
+  id          String   @id @default(cuid())
+  chatId      String
+  createdById String
+  token       String   @unique
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+}

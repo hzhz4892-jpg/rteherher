@@ -1,0 +1,5 @@
+node_modules
+.env
+server/uploads
+server/prisma/dev.db*
+client/dist
