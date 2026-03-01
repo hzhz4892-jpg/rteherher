@@ -93,6 +93,22 @@ npm run dev
 
 ## Частые ошибки PowerShell (как у вас) и быстрый фикс
 
+### 0) Папки проекта вообще нет на диске
+Если `cd ...\rteherher\server` пишет "path not found", скорее всего репозиторий ещё не скачан или лежит в другом месте.
+
+Проверьте, где есть папка `rteherher`:
+```powershell
+Get-ChildItem C:\Users\SystemX -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'rteherher' } | Select-Object -First 5 FullName
+```
+
+Если не нашли — сначала клонируйте проект:
+```powershell
+C:
+cd C:\Users\SystemX\Downloads
+git clone <URL_ВАШЕГО_РЕПО> rteherher
+cd C:\Users\SystemX\Downloads\rteherher
+```
+
 ### 1) `cd \path\to\...` не найден
 `\path\to\...` — это шаблон, а не реальная папка.
 
@@ -145,10 +161,35 @@ Get-ChildItem
 Copy-Item .env.example .env
 ```
 
+### 4) `npm ENOENT ... C:\Users\SystemX\package.json`
+Это значит, что `npm` запущен **не из папки проекта**.
+
+Проверка текущей папки:
+```powershell
+Get-Location
+Get-ChildItem
+```
+В `server` должен быть `package.json`, в `client` тоже должен быть `package.json`.
+
+### 5) `npx prisma ... Could not find Prisma Schema`
+Та же причина — вы не в `server`.
+
+Правильно:
+```powershell
+cd C:\...\rteherher\server
+npx.cmd prisma generate
+npx.cmd prisma migrate dev --name init
+```
+
 ### Минимальная рабочая последовательность для Windows (C:)
 ```powershell
+# 1) Найти/открыть корень проекта
 C:
-cd C:\Users\SystemX\Downloads\rteherher\server
+cd C:\Users\SystemX\Downloads\rteherher
+Get-ChildItem   # тут должны быть папки server и client
+
+# 2) Backend
+cd .\server
 Copy-Item .env.example .env
 npm.cmd install
 npx.cmd prisma generate
@@ -156,7 +197,7 @@ npx.cmd prisma migrate dev --name init
 npm.cmd run seed
 npm.cmd run dev
 
-# second terminal
+# 3) Frontend (в новом окне PowerShell)
 C:
 cd C:\Users\SystemX\Downloads\rteherher\client
 npm.cmd install
