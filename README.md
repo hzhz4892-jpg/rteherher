@@ -68,6 +68,29 @@ npm run dev
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
+
+### Запуск, если проект лежит на диске C:
+```powershell
+# открыть PowerShell и перейти на диск C
+C:
+cd \path\to\rteherher
+
+# backend
+cd server
+copy .env.example .env
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npm run seed
+npm run dev
+
+# frontend в новом окне PowerShell
+C:
+cd \path\to\rteherher\client
+npm install
+npm run dev
+```
+
 ### DB modes
 - Dev fast start: `DATABASE_PROVIDER=sqlite`, `DATABASE_URL=file:./dev.db`
 - Prod: `DATABASE_PROVIDER=postgresql`, `DATABASE_URL=postgresql://...`
