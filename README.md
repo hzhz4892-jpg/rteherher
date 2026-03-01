@@ -41,6 +41,33 @@ npm install
 npm run dev
 ```
 
+### Запуск, если проект лежит на диске D:
+```powershell
+# открыть PowerShell и перейти на диск D
+D:
+cd \path\to\rteherher
+
+# backend
+cd server
+copy .env.example .env
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npm run seed
+npm run dev
+
+# frontend в новом окне PowerShell
+D:
+cd \path\to\rteherher\client
+npm install
+npm run dev
+```
+
+Если у вас включена политика выполнения скриптов и npm не стартует, запустите PowerShell от администратора и выполните:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
 ### DB modes
 - Dev fast start: `DATABASE_PROVIDER=sqlite`, `DATABASE_URL=file:./dev.db`
 - Prod: `DATABASE_PROVIDER=postgresql`, `DATABASE_URL=postgresql://...`
